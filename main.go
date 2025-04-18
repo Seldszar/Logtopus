@@ -29,7 +29,7 @@ func getLogger(name string) (*slog.Logger, error) {
 		return nil, err
 	}
 
-	logger := slog.New(slog.NewTextHandler(io.MultiWriter(os.Stdout, file), nil))
+	logger := slog.New(slog.NewTextHandler(io.MultiWriter(os.Stdout, file), &slog.HandlerOptions{Level: slog.LevelDebug}))
 	loggers[name] = logger
 
 	return logger, nil
@@ -50,7 +50,6 @@ func reply(w http.ResponseWriter, statusCode int, v any) {
 }
 
 func main() {
-	addr := flag.String("address", ":3000", "network address to listen")
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /{name}", func(w http.ResponseWriter, r *http.Request) {
@@ -80,10 +79,16 @@ func main() {
 
 		logger.Log(r.Context(), slog.Level(data.Level), data.Message, slog.Any("detail", data.Detail))
 
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Allow-Methods", "POST")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+
 		reply(w, http.StatusCreated, map[string]any{
 			"message": data,
 		})
 	})
+
+	addr := flag.String("address", ":3000", "network address to listen")
 
 	if err := http.ListenAndServe(*addr, mux); err != nil {
 		slog.Error("server failed to listen", slog.Any("error", err))
